@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laboratorio Virtual de Señales (LVS)</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://unpkg.com/mathjs/lib/browser/math.js"></script>
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        
+        <div class="control-panel">
+            <h2>Panel de Control</h2>
+            
+            <div class="control-group">
+                <h3>1. Definición de Señal Base: f(x)</h3>
+                <label for="f_expr">Expresión f(x):</label>
+                <input type.text" id="f_expr" value="sin(2*pi*0.1*x) * (x >= 0 & x <= 20)">
+                
+                <label for="x_min">Rango x_min:</label>
+                <input type="number" id="x_min" value="-10">
+                
+                <label for="x_max">Rango x_max:</label>
+                <input type="number" id="x_max" value="30">
+                
+                <label class="toggle-switch">
+                    <span>Analógica (t)</span>
+                    <input type="checkbox" id="signal_type_toggle">
+                    <span class="slider"></span>
+                    <span>Discreta [n]</span>
+                </label>
+            </div>
+            
+            <div class="control-group">
+                <h3>2. Operaciones: y(x) = f(a(x - x₀))</h3>
+                <label for="x0_slider">Desplazamiento (x₀): <span id="x0_val">0</span></label>
+                <input type="range" id="x0_slider" min="-15" max="15" value="0" step="0.5">
+                
+                <label for="a_slider">Escalado (a): <span id="a_val">1</span></label>
+                <input type="range" id="a_slider" min="0.2" max="3" value="1" step="0.1">
+                <small id="discrete_scale_info" style="display:none;">(Solo factores 2, 3, 0.5, 0.33)</small>
+            </div>
+            
+            <div class="control-group">
+                <h3>3. Análisis de Simetría</h3>
+                <button id="symmetry_btn">Descomponer Par / Impar</button>
+                <button id="reset_plot_btn">Resetear Gráfico</button>
+            </div>
+
+            <div class="control-group" id="convolution_section">
+                <h3>4. Convolución Discreta: y[n] = f[n] * g[n]</h3>
+                <label for="g_expr">Expresión g(x):</label>
+                <input type.text" id="g_expr" value="(x >= 0 & x <= 2) ? 1 : 0">
+                <button id="convolve_btn">Calcular Convolución</button>
+            </div>
+
+            <div id="error_message" class="error"></div>
+        </div>
+        
+        <div class="plot-area">
+            <div id="plot"></div>
+        </div>
+
+    </div>
+    
+    <script src="app.js"></script>
+</body>
+</html>
