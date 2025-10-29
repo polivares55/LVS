@@ -1,9 +1,9 @@
 window.addEventListener('DOMContentLoaded', () => {
 
-    // --- 1. REFERENCIAS DEL DOM ---
+    // --- 1. REFERENCIAS DEL DOM (Simplificado) ---
     const dom = {
         f_expr: document.getElementById('f_expr'),
-        g_expr: document.getElementById('g_expr'),
+        // g_expr: (Eliminado)
         x_min: document.getElementById('x_min'),
         x_max: document.getElementById('x_max'),
         isDiscrete: document.getElementById('signal_type_toggle'),
@@ -12,11 +12,11 @@ window.addEventListener('DOMContentLoaded', () => {
         a_slider: document.getElementById('a_slider'),
         a_val: document.getElementById('a_val'),
         symmetry_btn: document.getElementById('symmetry_btn'),
-        convolve_btn: document.getElementById('convolve_btn'),
+        // convolve_btn: (Eliminado)
         reset_plot_btn: document.getElementById('reset_plot_btn'),
         plotDiv: document.getElementById('plot'),
         errorMessage: document.getElementById('error_message'),
-        convSection: document.getElementById('convolution_section'),
+        // convSection: (Eliminado)
         discreteScaleInfo: document.getElementById('discrete_scale_info')
     };
 
@@ -42,7 +42,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
     /**
      * Compila y evalúa una expresión matemática en un rango de puntos.
-     * Maneja expresiones booleanas (ej. x > 0) como 1 o 0.
      */
     function evaluateExpression(expr, x_values) {
         let compiledExpr;
@@ -58,17 +57,15 @@ window.addEventListener('DOMContentLoaded', () => {
         return x_values.map(x => {
             try {
                 const result = compiledExpr.evaluate({ x });
-                // Convertir booleanos a 1/0 para pulsos
                 if (typeof result === 'boolean') {
                     return result ? 1 : 0;
                 }
-                // Manejar valores no finitos
                 if (!isFinite(result)) {
                     return 0;
                 }
                 return result;
             } catch (e) {
-                return 0; // Evaluar a 0 si hay error en un punto (ej. log(0))
+                return 0; 
             }
         });
     }
@@ -78,7 +75,6 @@ window.addEventListener('DOMContentLoaded', () => {
      */
     function getXValues(min, max, isDiscrete) {
         if (isDiscrete) {
-            // Rango de enteros
             min = Math.floor(min);
             max = Math.ceil(max);
             let n_values = [];
@@ -87,7 +83,6 @@ window.addEventListener('DOMContentLoaded', () => {
             }
             return n_values;
         } else {
-            // Rango continuo (alta resolución para Plotly)
             const num_points = 1000;
             const step = (max - min) / num_points;
             let x_values = [];
@@ -99,7 +94,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
     
     /**
-     * Dibuja los "stems" (tallos) para el gráfico discreto usando 'shapes' de Plotly
+     * Dibuja los "stems" (tallos) para el gráfico discreto
      */
     function createStems(x, y) {
         return x.map((x_val, i) => ({
@@ -128,35 +123,22 @@ window.addEventListener('DOMContentLoaded', () => {
         const x0 = parseFloat(dom.x0_slider.value);
         let a = parseFloat(dom.a_slider.value);
 
-        // Actualizar etiquetas de sliders
         dom.x0_val.textContent = x0.toFixed(1);
         dom.a_val.textContent = a.toFixed(2);
         
-        // --- Lógica de Escalado Discreto (Requisito Pedagógico) ---
         if (isDiscrete) {
-            // Ajustar (snap) el valor 'a' a los valores didácticos
             a = snapDiscreteScale(a);
             dom.a_val.textContent = a.toFixed(2);
-            // Actualizar visualmente el slider (aunque el 'step' es 0.1, el valor se fuerza)
             dom.a_slider.value = a; 
         }
 
-        // Generar los puntos del eje X
         let x_values = getXValues(min, max, isDiscrete);
-
-        // Calcular los puntos de la función transformada: f(a * (x - x0))
-        // 1. Crear el eje transformado
         let transformed_x = x_values.map(x => a * (x - x0));
-        
-        // 2. Evaluar f(x) en esos puntos
         let y_values = evaluateExpression(f_expr, transformed_x);
         
-        if (!y_values) return; // Error de sintaxis, no continuar
+        if (!y_values) return; 
 
-        // --- Lógica Específica de Diezmado/Interpolación ---
-        // Esto sobreescribe el cálculo simple si es discreto
         if (isDiscrete && a !== 1) {
-            // Primero, obtenemos la señal base f[n]
             const base_n = getXValues(min, max, true);
             const base_f_n = evaluateExpression(f_expr, base_n);
             
@@ -173,12 +155,11 @@ window.addEventListener('DOMContentLoaded', () => {
                 for (let n = min; n <= max; n++) {
                     x_values.push(n);
                     if (n % factor === 0) {
-                        // Encontrar el índice correspondiente en f[n]
                         const original_index = base_n.indexOf(n_original);
                         if (original_index !== -1) {
                             y_values.push(base_f_n[original_index]);
                         } else {
-                            y_values.push(0); // Fuera del rango original
+                            y_values.push(0);
                         }
                         n_original++;
                     } else {
@@ -188,7 +169,6 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         }
         
-        // --- Actualización de Plotly ---
         const trace = {
             x: x_values,
             y: y_values,
@@ -205,7 +185,7 @@ window.addEventListener('DOMContentLoaded', () => {
             title: title,
             xaxis: { title: isDiscrete ? 'n' : 't', range: [min, max] },
             yaxis: { title: 'Amplitud' },
-            shapes: isDiscrete ? createStems(x_values, y_values) : [] // Añadir stems
+            shapes: isDiscrete ? createStems(x_values, y_values) : []
         };
 
         Plotly.react(dom.plotDiv, [trace], layout);
@@ -216,7 +196,6 @@ window.addEventListener('DOMContentLoaded', () => {
      */
     function snapDiscreteScale(a) {
         const supported_scales = [0.2, 0.25, 0.33, 0.5, 1, 2, 3];
-        // Encontrar el valor soportado más cercano
         return supported_scales.reduce((prev, curr) => 
             (Math.abs(curr - a) < Math.abs(prev - a) ? curr : prev)
         );
@@ -234,20 +213,15 @@ window.addEventListener('DOMContentLoaded', () => {
         const isDiscrete = dom.isDiscrete.checked;
         const x_values = getXValues(min, max, isDiscrete);
         
-        // 1. f(x)
         const f_x = evaluateExpression(f_expr, x_values);
-        // 2. f(-x)
         const x_neg = x_values.map(x => -x);
         const f_neg_x = evaluateExpression(f_expr, x_neg);
 
-        if (!f_x || !f_neg_x) return; // Error
+        if (!f_x || !f_neg_x) return;
 
-        // 3. Componente Par: 0.5 * (f(x) + f(-x))
         const f_e = f_x.map((val, i) => 0.5 * (val + f_neg_x[i]));
-        // 4. Componente Impar: 0.5 * (f(x) - f(-x))
         const f_o = f_x.map((val, i) => 0.5 * (val - f_neg_x[i]));
 
-        // --- Actualizar Plotly con 3 trazas ---
         const trace_orig = {
             x: x_values, y: f_x, mode: 'lines', name: 'f(x)', line: { dash: 'dot', color: 'grey' }
         };
@@ -269,88 +243,32 @@ window.addEventListener('DOMContentLoaded', () => {
             title: 'Descomposición Par / Impar',
             xaxis: { title: isDiscrete ? 'n' : 't', range: [min, max] },
             yaxis: { title: 'Amplitud' },
-            shapes: [] // No dibujar stems en simetría para claridad
+            shapes: []
         };
 
         Plotly.react(dom.plotDiv, [trace_orig, trace_even, trace_odd], layout);
     }
 
     /**
-     * Convolución Discreta (Numérica)
+     * Función plotConvolution() ELIMINADA
      */
-    function plotConvolution() {
-        if (!dom.isDiscrete.checked) {
-            dom.errorMessage.textContent = 'La convolución solo está implementada para señales discretas.';
-            dom.errorMessage.style.display = 'block';
-            return;
-        }
-
-        const min = Math.floor(parseFloat(dom.x_min.value));
-        const max = Math.ceil(parseFloat(dom.x_max.value));
-        
-        // 1. Muestrear f[n]
-        const n_base = getXValues(min, max, true);
-        const f_n = evaluateExpression(dom.f_expr.value, n_base);
-        // 2. Muestrear g[n]
-        const g_n = evaluateExpression(dom.g_expr.value, n_base);
-
-        if (!f_n || !g_n) return;
-
-        // 3. Calcular Convolución: y[n] = f[n] * g[n]
-        const y_n = [];
-        const n_conv_min = 2 * min;
-        const n_conv_max = 2 * max;
-        const n_conv = [];
-
-        // Implementación del sumatorio de convolución
-        for (let n = n_conv_min; n <= n_conv_max; n++) {
-            let sum = 0;
-            for (let k = min; k <= max; k++) {
-                const f_k_val = f_n[n_base.indexOf(k)] || 0;
-                const g_n_k_val = g_n[n_base.indexOf(n - k)] || 0;
-                sum += f_k_val * g_n_k_val;
-            }
-            y_n.push(sum);
-            n_conv.push(n);
-        }
-
-        // 4. Graficar y[n]
-        const trace = {
-            x: n_conv,
-            y: y_n,
-            mode: 'markers',
-            type: 'scatter',
-            name: 'y[n] = f[n] * g[n]',
-            marker: { size: 8, color: '#28a745' }
-        };
-
-        const layout = {
-            title: 'Convolución Discreta',
-            xaxis: { title: 'n', range: [n_conv_min, n_conv_max] },
-            yaxis: { title: 'Amplitud' },
-            shapes: createStems(n_conv, y_n)
-        };
-        
-        Plotly.react(dom.plotDiv, [trace], layout);
-    }
+    // ...
 
     /**
-     * Gestiona la visibilidad de los controles
+     * Gestiona la visibilidad de los controles (Simplificado)
      */
     function toggleControls() {
         const isDiscrete = dom.isDiscrete.checked;
-        dom.convSection.style.display = isDiscrete ? 'block' : 'none';
+        // dom.convSection.style.display = (Eliminado)
         dom.discreteScaleInfo.style.display = isDiscrete ? 'block' : 'none';
         updatePlot(); // Actualizar gráfico al cambiar de modo
     }
 
     // --- 6. ASIGNACIÓN DE EVENTOS (LISTENERS) ---
     
-    // Eventos 'input' para actualización en tiempo real
     dom.x0_slider.addEventListener('input', updatePlot);
     dom.a_slider.addEventListener('input', updatePlot);
     
-    // Eventos 'change' para recalcular al soltar o cambiar
     dom.f_expr.addEventListener('change', updatePlot);
     dom.x_min.addEventListener('change', updatePlot);
     dom.x_max.addEventListener('change', updatePlot);
@@ -358,10 +276,10 @@ window.addEventListener('DOMContentLoaded', () => {
     
     // Botones
     dom.symmetry_btn.addEventListener('click', plotSymmetry);
-    dom.convolve_btn.addEventListener('click', plotConvolution);
-    dom.reset_plot_btn.addEventListener('click', updatePlot); // 'Reset' simplemente vuelve a f(x)
+    // dom.convolve_btn.addEventListener('click', plotConvolution); (Eliminado)
+    dom.reset_plot_btn.addEventListener('click', updatePlot); 
     
     // --- 7. INICIO DE LA APP ---
     initializePlot();
-    toggleControls(); // Llama a updatePlot() internamente
+    toggleControls(); 
 });

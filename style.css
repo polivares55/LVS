@@ -51,17 +51,39 @@ h2, h3 {
 }
 
 input[type="text"], input[type="number"] {
-    width: calc(100% - 10px);
+    width: 100%; /* Ajustado a 100% */
     padding: 8px;
     margin-bottom: 10px;
     border: 1px solid #ccc;
     border-radius: 4px;
+    box-sizing: border-box; /* Clave para el nuevo layout */
 }
 
 input[type="range"] {
     width: 100%;
     margin-top: 5px;
 }
+
+/* --- NUEVO: Reglas para el layout de Rango --- */
+.range-inputs {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px; /* Espacio entre las columnas */
+    margin-top: 5px; /* Espacio bajo el input f(x) */
+}
+.range-col {
+    flex: 1; /* Cada columna toma 50% */
+}
+.range-col label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 0.9em;
+}
+.range-col input[type="number"] {
+    margin-bottom: 10px; /* Margen inferior para el toggle */
+}
+/* --- Fin de reglas nuevas --- */
+
 
 button {
     background-color: #007bff;
