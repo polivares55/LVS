@@ -52,8 +52,21 @@
             
             <div class="control-group">
                 <h3>3. Análisis de Simetría</h3>
-                <button id="symmetry_btn">Descomponer Par / Impar</button>
-                <button id="reset_plot_btn">Resetear Gráfico</button>
+                <p style="font-size: 0.9em; margin-top:0;">Use este flujo para verificar la teoría.</p>
+                
+                <button id="calc_symmetry_btn" class="btn-primary">1. Calcular Componentes</button>
+                
+                <div class="button-row">
+                    <button id="plot_even_btn" class="sym_plot_btn" disabled>Ver Par (f_e)</button>
+                    <button id="plot_odd_btn" class="sym_plot_btn" disabled>Ver Impar (f_o)</button>
+                </div>
+                
+                <div class="button-row">
+                    <button id="plot_sum_btn" class="sym_plot_btn" disabled>Ver Suma (f_e + f_o)</button>
+                    <button id="plot_diff_btn" class="sym_plot_btn" disabled>Ver Resta (f_e - f_o)</button>
+                </div>
+                
+                <button id="reset_plot_btn" class="btn-secondary">Resetear Gráfico Base</button>
             </div>
 
             <div id="error_message" class="error"></div>

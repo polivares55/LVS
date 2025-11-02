@@ -1,9 +1,8 @@
 window.addEventListener('DOMContentLoaded', () => {
 
-    // --- 1. REFERENCIAS DEL DOM (Simplificado) ---
+    // --- 1. REFERENCIAS DEL DOM (Actualizadas) ---
     const dom = {
         f_expr: document.getElementById('f_expr'),
-        // g_expr: (Eliminado)
         x_min: document.getElementById('x_min'),
         x_max: document.getElementById('x_max'),
         isDiscrete: document.getElementById('signal_type_toggle'),
@@ -11,17 +10,24 @@ window.addEventListener('DOMContentLoaded', () => {
         x0_val: document.getElementById('x0_val'),
         a_slider: document.getElementById('a_slider'),
         a_val: document.getElementById('a_val'),
-        symmetry_btn: document.getElementById('symmetry_btn'),
-        // convolve_btn: (Eliminado)
-        reset_plot_btn: document.getElementById('reset_plot_btn'),
         plotDiv: document.getElementById('plot'),
         errorMessage: document.getElementById('error_message'),
-        // convSection: (Eliminado)
-        discreteScaleInfo: document.getElementById('discrete_scale_info')
+        discreteScaleInfo: document.getElementById('discrete_scale_info'),
+        
+        // --- Nuevos botones de Simetría ---
+        calc_symmetry_btn: document.getElementById('calc_symmetry_btn'),
+        plot_even_btn: document.getElementById('plot_even_btn'),
+        plot_odd_btn: document.getElementById('plot_odd_btn'),
+        plot_sum_btn: document.getElementById('plot_sum_btn'),
+        plot_diff_btn: document.getElementById('plot_diff_btn'),
+        reset_plot_btn: document.getElementById('reset_plot_btn')
     };
 
     // Parser de math.js
     const parser = math.parser();
+    
+    // --- Almacén para los datos de simetría ---
+    let symmetryData = null;
 
     // --- 2. INICIALIZACIÓN DE PLOTLY ---
     function initializePlot() {
@@ -110,12 +116,33 @@ window.addEventListener('DOMContentLoaded', () => {
         }));
     }
 
+    /**
+     * Habilita o deshabilita los botones de ploteo de simetría
+     */
+    function enableSymmetryButtons(enabled) {
+        dom.plot_even_btn.disabled = !enabled;
+        dom.plot_odd_btn.disabled = !enabled;
+        dom.plot_sum_btn.disabled = !enabled;
+        dom.plot_diff_btn.disabled = !enabled;
+    }
+
+    /**
+     * Invalida los datos de simetría si la señal base cambia
+     */
+    function invalidateSymmetry() {
+        symmetryData = null;
+        enableSymmetryButtons(false);
+    }
+
     // --- 4. LÓGICA DE OPERACIONES (EL NÚCLEO) ---
 
     /**
-     * Función principal que actualiza el gráfico
+     * Función principal que actualiza el gráfico (Actualizada)
      */
     function updatePlot() {
+        // Cualquier cambio en la señal base invalida los cálculos de simetría
+        invalidateSymmetry();
+
         const f_expr = dom.f_expr.value;
         const min = parseFloat(dom.x_min.value);
         const max = parseFloat(dom.x_max.value);
@@ -123,21 +150,28 @@ window.addEventListener('DOMContentLoaded', () => {
         const x0 = parseFloat(dom.x0_slider.value);
         let a = parseFloat(dom.a_slider.value);
 
+        // Actualizar etiquetas de sliders
         dom.x0_val.textContent = x0.toFixed(1);
         dom.a_val.textContent = a.toFixed(2);
         
+        // --- Lógica de Escalado Discreto (Intacta) ---
         if (isDiscrete) {
             a = snapDiscreteScale(a);
             dom.a_val.textContent = a.toFixed(2);
             dom.a_slider.value = a; 
         }
 
+        // Generar los puntos del eje X
         let x_values = getXValues(min, max, isDiscrete);
+
+        // Calcular los puntos de la función transformada: f(a * (x - x0))
         let transformed_x = x_values.map(x => a * (x - x0));
+        
         let y_values = evaluateExpression(f_expr, transformed_x);
         
-        if (!y_values) return; 
+        if (!y_values) return; // Error de sintaxis, no continuar
 
+        // --- Lógica Específica de Diezmado/Interpolación (Intacta) ---
         if (isDiscrete && a !== 1) {
             const base_n = getXValues(min, max, true);
             const base_f_n = evaluateExpression(f_expr, base_n);
@@ -169,6 +203,7 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         }
         
+        // --- Actualización de Plotly ---
         const trace = {
             x: x_values,
             y: y_values,
@@ -201,12 +236,12 @@ window.addEventListener('DOMContentLoaded', () => {
         );
     }
 
-    // --- 5. LÓGICAS DE BOTONES ---
+    // --- 5. LÓGICAS DE BOTONES (Refactorizadas) ---
 
     /**
-     * Descomposición en Par / Impar
+     * 5.1. Calcula y almacena las componentes de simetría
      */
-    function plotSymmetry() {
+    function calculateSymmetry() {
         const f_expr = dom.f_expr.value;
         const min = parseFloat(dom.x_min.value);
         const max = parseFloat(dom.x_max.value);
@@ -217,69 +252,194 @@ window.addEventListener('DOMContentLoaded', () => {
         const x_neg = x_values.map(x => -x);
         const f_neg_x = evaluateExpression(f_expr, x_neg);
 
-        if (!f_x || !f_neg_x) return;
+        if (!f_x || !f_neg_x) {
+            dom.errorMessage.textContent = "Error al evaluar f(x) o f(-x). Revise la expresión.";
+            dom.errorMessage.style.display = 'block';
+            return;
+        }
 
         const f_e = f_x.map((val, i) => 0.5 * (val + f_neg_x[i]));
         const f_o = f_x.map((val, i) => 0.5 * (val - f_neg_x[i]));
 
+        // Almacena los resultados
+        symmetryData = {
+            x: x_values,
+            f: f_x,
+            fe: f_e,
+            fo: f_o,
+            isDiscrete: isDiscrete,
+            range: [min, max],
+            x_label: isDiscrete ? 'n' : 't'
+        };
+
+        // Habilita los botones de ploteo
+        enableSymmetryButtons(true);
+        dom.errorMessage.textContent = "Componentes calculadas. Listo para graficar.";
+        dom.errorMessage.style.display = 'block';
+        setTimeout(() => { dom.errorMessage.style.display = 'none'; }, 2000);
+    }
+
+    /**
+     * 5.2. Plotea solo la componente Par
+     */
+    function plotEven() {
+        if (!symmetryData) return;
+        
+        const trace = {
+            x: symmetryData.x,
+            y: symmetryData.fe,
+            mode: symmetryData.isDiscrete ? 'markers' : 'lines',
+            type: 'scatter',
+            name: 'f_e(x)',
+            line: { color: 'red' }
+        };
+
+        const layout = {
+            title: 'Componente Par (f_e)',
+            xaxis: { title: symmetryData.x_label, range: symmetryData.range },
+            yaxis: { title: 'Amplitud' },
+            shapes: symmetryData.isDiscrete ? createStems(symmetryData.x, symmetryData.fe) : []
+        };
+        Plotly.react(dom.plotDiv, [trace], layout);
+    }
+
+    /**
+     * 5.3. Plotea solo la componente Impar
+     */
+    function plotOdd() {
+        if (!symmetryData) return;
+        
+        const trace = {
+            x: symmetryData.x,
+            y: symmetryData.fo,
+            mode: symmetryData.isDiscrete ? 'markers' : 'lines',
+            type: 'scatter',
+            name: 'f_o(x)',
+            line: { color: 'blue' }
+        };
+
+        const layout = {
+            title: 'Componente Impar (f_o)',
+            xaxis: { title: symmetryData.x_label, range: symmetryData.range },
+            yaxis: { title: 'Amplitud' },
+            shapes: symmetryData.isDiscrete ? createStems(symmetryData.x, symmetryData.fo) : []
+        };
+        Plotly.react(dom.plotDiv, [trace], layout);
+    }
+
+    /**
+     * 5.4. Plotea la Suma (Verificación)
+     */
+    function plotSum() {
+        if (!symmetryData) return;
+
+        const f_sum = symmetryData.fe.map((val, i) => val + symmetryData.fo[i]);
+
         const trace_orig = {
-            x: x_values, y: f_x, mode: 'lines', name: 'f(x)', line: { dash: 'dot', color: 'grey' }
-        };
-        const trace_even = {
-            x: x_values, y: f_e, mode: 'lines', name: 'Componente Par (f_e)', line: { color: 'red' }
-        };
-        const trace_odd = {
-            x: x_values, y: f_o, mode: 'lines', name: 'Componente Impar (f_o)', line: { color: 'blue' }
+            x: symmetryData.x, y: symmetryData.f, 
+            mode: 'lines', name: 'Original f(x)', 
+            line: { dash: 'dot', color: 'grey', width: 4 }
         };
         
-        if(isDiscrete) {
-            [trace_orig, trace_even, trace_odd].forEach(t => {
+        const trace_sum = {
+            x: symmetryData.x, y: f_sum, 
+            mode: 'lines', name: 'Suma (f_e + f_o)', 
+            line: { color: 'red', width: 2 }
+        };
+        
+        if(symmetryData.isDiscrete) {
+            [trace_orig, trace_sum].forEach(t => {
                 t.mode = 'markers';
-                t.marker = { size: 6 };
+                t.line = {};
+                t.marker = { size: t.name === 'Original f(x)' ? 10 : 6 };
             });
+            trace_orig.marker.symbol = 'circle-open';
+            trace_sum.marker.color = 'red';
+            trace_orig.marker.color = 'grey';
         }
 
         const layout = {
-            title: 'Descomposición Par / Impar',
-            xaxis: { title: isDiscrete ? 'n' : 't', range: [min, max] },
+            title: 'Verificación de Suma: f(x) vs (f_e + f_o)',
+            xaxis: { title: symmetryData.x_label, range: symmetryData.range },
             yaxis: { title: 'Amplitud' },
             shapes: []
         };
+        Plotly.react(dom.plotDiv, [trace_orig, trace_sum], layout);
+    }
+    
+    /**
+     * 5.5. Plotea la Resta (Contraste)
+     */
+    function plotDifference() {
+        if (!symmetryData) return;
 
-        Plotly.react(dom.plotDiv, [trace_orig, trace_even, trace_odd], layout);
+        const f_diff = symmetryData.fe.map((val, i) => val - symmetryData.fo[i]);
+
+        const trace_orig = {
+            x: symmetryData.x, y: symmetryData.f, 
+            mode: 'lines', name: 'Original f(x)', 
+            line: { dash: 'dot', color: 'grey', width: 4 }
+        };
+        
+        const trace_diff = {
+            x: symmetryData.x, y: f_diff, 
+            mode: 'lines', name: 'Resta (f_e - f_o)', 
+            line: { color: 'orange', width: 2 }
+        };
+        
+        if(symmetryData.isDiscrete) {
+             [trace_orig, trace_diff].forEach(t => {
+                t.mode = 'markers';
+                t.line = {}; 
+                t.marker = { size: t.name === 'Original f(x)' ? 10 : 6 };
+            });
+            trace_orig.marker.symbol = 'circle-open';
+            trace_diff.marker.color = 'orange';
+            trace_orig.marker.color = 'grey';
+        }
+
+        const layout = {
+            title: 'Contraste: f(x) vs (f_e - f_o)',
+            xaxis: { title: symmetryData.x_label, range: symmetryData.range },
+            yaxis: { title: 'Amplitud' },
+            shapes: []
+        };
+        Plotly.react(dom.plotDiv, [trace_orig, trace_diff], layout);
     }
 
+    // --- ¡¡FUNCIÓN RESTAURADA!! ---
     /**
-     * Función plotConvolution() ELIMINADA
-     */
-    // ...
-
-    /**
-     * Gestiona la visibilidad de los controles (Simplificado)
+     * Gestiona la visibilidad de los controles
      */
     function toggleControls() {
         const isDiscrete = dom.isDiscrete.checked;
-        // dom.convSection.style.display = (Eliminado)
         dom.discreteScaleInfo.style.display = isDiscrete ? 'block' : 'none';
         updatePlot(); // Actualizar gráfico al cambiar de modo
     }
+    // --- FIN DE LA RESTAURACIÓN ---
+
 
     // --- 6. ASIGNACIÓN DE EVENTOS (LISTENERS) ---
     
+    // Sliders y inputs
     dom.x0_slider.addEventListener('input', updatePlot);
     dom.a_slider.addEventListener('input', updatePlot);
-    
     dom.f_expr.addEventListener('change', updatePlot);
     dom.x_min.addEventListener('change', updatePlot);
     dom.x_max.addEventListener('change', updatePlot);
     dom.isDiscrete.addEventListener('change', toggleControls);
     
-    // Botones
-    dom.symmetry_btn.addEventListener('click', plotSymmetry);
-    // dom.convolve_btn.addEventListener('click', plotConvolution); (Eliminado)
-    dom.reset_plot_btn.addEventListener('click', updatePlot); 
+    // Botones de Simetría (Nuevos)
+    dom.calc_symmetry_btn.addEventListener('click', calculateSymmetry);
+    dom.plot_even_btn.addEventListener('click', plotEven);
+    dom.plot_odd_btn.addEventListener('click', plotOdd);
+    dom.plot_sum_btn.addEventListener('click', plotSum);
+    dom.plot_diff_btn.addEventListener('click', plotDifference);
+    dom.reset_plot_btn.addEventListener('click', updatePlot); // 'Reset' simplemente vuelve a f(x)
+    
     
     // --- 7. INICIO DE LA APP ---
+    
     initializePlot();
-    toggleControls(); 
+    toggleControls(); // Esta llamada ahora funcionará
 });
